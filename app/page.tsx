@@ -3,34 +3,26 @@ import Hero from '@/components/Hero'
 import FeaturedCars from '@/components/FeaturedCars'
 import BrandShowcase from '@/components/BrandShowcase'
 import DealershipSection from '@/components/DealershipSection'
-import type { Car, Brand, Dealership } from '@/types'
 
-export default async function Home() {
-  // Fetch data on server side
+export const metadata = {
+  title: 'Elite Sports Car Dealership - Luxury Automotive Excellence',
+  description: 'Discover premium sports cars from Ferrari, Porsche, and Lamborghini. Elite dealership locations with certified pre-owned and new luxury vehicles.',
+}
+
+export default async function HomePage() {
+  // Fetch all data in parallel
   const [cars, brands, dealerships] = await Promise.all([
-    getCars({ available: true }),
+    getCars({ available: true }), // Only show available cars on homepage
     getBrands(),
     getDealerships()
   ])
 
-  // Get featured cars (first 6 available cars)
-  const featuredCars = cars.slice(0, 6)
-
   return (
-    <div className="space-y-16">
+    <div>
       <Hero />
-      
-      {featuredCars.length > 0 && (
-        <FeaturedCars cars={featuredCars} />
-      )}
-      
-      {brands.length > 0 && (
-        <BrandShowcase brands={brands} />
-      )}
-      
-      {dealerships.length > 0 && (
-        <DealershipSection dealerships={dealerships} />
-      )}
+      <FeaturedCars cars={cars} />
+      <BrandShowcase brands={brands} />
+      <DealershipSection dealerships={dealerships} />
     </div>
   )
 }

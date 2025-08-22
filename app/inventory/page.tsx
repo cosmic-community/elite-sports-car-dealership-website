@@ -1,40 +1,69 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import { getCars, getBrands } from '@/lib/cosmic'
 import InventoryGrid from '@/components/InventoryGrid'
 import InventoryFilters from '@/components/InventoryFilters'
-import type { Car, Brand } from '@/types'
+import type { Car, Brand, CarFilters } from '@/types'
 
-export const metadata = {
-  title: 'Inventory - Elite Sports Car Dealership',
-  description: 'Browse our complete inventory of luxury sports cars including Ferrari, Porsche, and Lamborghini vehicles.',
-}
+export default function InventoryPage() {
+  const [cars, setCars] = useState<Car[]>([])
+  const [brands, setBrands] = useState<Brand[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState<CarFilters>({})
 
-interface InventoryPageProps {
-  searchParams: Promise<{
-    brand?: string;
-    condition?: string;
-    minPrice?: string;
-    maxPrice?: string;
-  }>
-}
+  // Load initial data
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [carsData, brandsData] = await Promise.all([
+          getCars(),
+          getBrands()
+        ])
+        setCars(carsData)
+        setBrands(brandsData)
+      } catch (error) {
+        console.error('Failed to load inventory data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-export default async function InventoryPage({ searchParams }: InventoryPageProps) {
-  // IMPORTANT: In Next.js 15+, searchParams are now Promises and MUST be awaited
-  const params = await searchParams
-  
-  // Parse search parameters
-  const filters = {
-    brand: params.brand,
-    condition: params.condition as 'new' | 'used' | 'certified' | undefined,
-    minPrice: params.minPrice ? parseInt(params.minPrice) : undefined,
-    maxPrice: params.maxPrice ? parseInt(params.maxPrice) : undefined,
-    available: true, // Only show available cars
+    loadData()
+  }, [])
+
+  // Apply filters to cars
+  const filteredCars = cars.filter(car => {
+    // Brand filter
+    if (filters.brand && car.metadata.brand?.id !== filters.brand) {
+      return false
+    }
+
+    // Condition filter
+    if (filters.condition && car.metadata.condition.key !== filters.condition) {
+      return false
+    }
+
+    // Price filters
+    if (filters.minPrice && car.metadata.price < filters.minPrice) {
+      return false
+    }
+
+    if (filters.maxPrice && car.metadata.price > filters.maxPrice) {
+      return false
+    }
+
+    // Availability filter
+    if (filters.available !== undefined && car.metadata.available !== filters.available) {
+      return false
+    }
+
+    return true
+  })
+
+  const handleFiltersChange = (newFilters: CarFilters) => {
+    setFilters(newFilters)
   }
-
-  // Fetch data with filters
-  const [cars, brands] = await Promise.all([
-    getCars(filters),
-    getBrands()
-  ])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -46,31 +75,32 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
               Luxury Sports Car Inventory
             </h1>
             <p className="text-xl opacity-90 max-w-2xl mx-auto">
-              Discover our curated collection of premium sports cars from the world's most prestigious brands.
+              Browse our exclusive collection of premium sports cars from the world's most prestigious manufacturers.
             </p>
+            {!loading && (
+              <div className="mt-6">
+                <span className="inline-block bg-white/20 px-4 py-2 rounded-full text-lg font-semibold">
+                  {filteredCars.length} {filteredCars.length === 1 ? 'Vehicle' : 'Vehicles'} Available
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Filters Sidebar */}
-          <aside className="lg:w-64 flex-shrink-0">
-            <InventoryFilters brands={brands} />
-          </aside>
-
-          {/* Results */}
-          <main className="flex-1">
-            <div className="mb-6">
-              <p className="text-lg text-luxury-600">
-                {cars.length} {cars.length === 1 ? 'vehicle' : 'vehicles'} available
-              </p>
-            </div>
-            
-            <InventoryGrid cars={cars} />
-          </main>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Filters */}
+        <div className="mb-8">
+          <InventoryFilters 
+            brands={brands}
+            onFiltersChange={handleFiltersChange}
+            initialFilters={filters}
+          />
         </div>
+
+        {/* Results */}
+        <InventoryGrid cars={filteredCars} loading={loading} />
       </div>
     </div>
   )
